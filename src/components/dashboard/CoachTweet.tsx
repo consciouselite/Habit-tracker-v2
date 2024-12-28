@@ -139,9 +139,6 @@ const generateTweet = async () => {
         localStorage.setItem('date', todayDate.toISOString().split('T')[0]);
       }
     }
-    if (!tweet) {
-      generateTweet();
-    }
   }, [user]);
 
   return (

@@ -16,27 +16,43 @@ export function CoachTweet({ day }: CoachTweetProps) {
         return { goals: '', vision: '' };
       }
       try {
-        const { data, error } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('goals, vision')
+          .select('goals, vision, firstName')
           .eq('id', user.id)
           .single();
 
-        if (error) {
-          console.error('Error fetching user data:', error);
-          return { goals: '', vision: '' };
+        if (profileError) {
+          console.error('Error fetching user profile data:', profileError);
+          return { goals: '', vision: '', firstName: '' };
         }
-        return data;
+
+        const { data: streakData, error: streakError } = await supabase
+          .from('habit_streaks')
+          .select('streak')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (streakError) {
+          console.error('Error fetching user streak data:', streakError);
+          return { goals: profileData.goals, vision: profileData.vision, firstName: profileData.firstName, streak: 0 };
+        }
+
+        return { goals: profileData.goals, vision: profileData.vision, firstName: profileData.firstName, streak: streakData.streak };
       } catch (error) {
         console.error('Error fetching user data:', error);
-        return { goals: '', vision: '' };
+        return { goals: '', vision: '', firstName: '', streak: 0 };
       }
     };
 
     const generateTweet = async () => {
       const userData = await fetchUserData();
-      const geminiApiKey = 'AIzaSyAigFtUTFDG91r2Z8daT09qGCUMYtzl94w'; // Replace with your actual API key
-      const prompt = `Generate a motivational tweet based on the following user goals: ${userData.goals} and vision: ${userData.vision}.`;
+      const geminiApiKey = 'AIzaSyAigFtUTFDG91r2Z8daT09qGCUMYtzl94w';
+      const today = new Date();
+      const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
+      const prompt = `Generate a short, supportive and relatable tweet for ${userData.firstName} on this ${dayOfWeek} based on their goals: ${userData.goals}, vision: ${userData.vision}, and current habit streak of ${userData.streak} days. The tweet should not include emojis or hashtags.`;
 
       try {
         const response = await fetch(

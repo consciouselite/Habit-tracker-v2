@@ -18,10 +18,10 @@ export function CoachTweet({ day }: CoachTweetProps) {
       }
       try {
         const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('first_name')
-        .eq('id', user.id)
-        .single();
+       .from('profiles')
+       .select('first_name')
+       .eq('id', user.id)
+       .single();
 
         if (profileError) {
           console.error('Error fetching user profile data:', profileError);
@@ -29,9 +29,9 @@ export function CoachTweet({ day }: CoachTweetProps) {
         }
 
         const { data: goalsData, error: goalsError } = await supabase
-        .from('goals')
-        .select('name, importance')
-        .eq('user_id', user.id);
+       .from('goals')
+       .select('name, importance')
+       .eq('user_id', user.id);
 
         if (goalsError) {
           console.error('Error fetching user goals data:', goalsError);
@@ -39,11 +39,11 @@ export function CoachTweet({ day }: CoachTweetProps) {
         }
 
         const oldMeAssessments = await supabase
-        .from('assessments')
-        .select('assessment_type, value')
-        .eq('user_id', user.id)
-        .in('assessment_type', ['limiting_beliefs', 'bad_habits', 'time_wasters', 'energy_drainers', 'growth_blockers'])
-        .not('value', 'is', null);
+       .from('assessments')
+       .select('assessment_type, value')
+       .eq('user_id', user.id)
+       .in('assessment_type', ['limiting_beliefs', 'bad_habits', 'time_wasters', 'energy_drainers', 'growth_blockers'])
+       .not('value', 'is', null);
 
         if (oldMeAssessments.error) {
           console.error('Error fetching old me assessments:', oldMeAssessments.error);
@@ -51,11 +51,11 @@ export function CoachTweet({ day }: CoachTweetProps) {
         }
 
         const newMeAssessments = await supabase
-        .from('assessments')
-        .select('assessment_type, value')
-        .eq('user_id', user.id)
-        .in('assessment_type', ['new_beliefs', 'empowering_habits', 'time_investment', 'energy_gains', 'growth_areas'])
-        .not('value', 'is', null);
+       .from('assessments')
+       .select('assessment_type, value')
+       .eq('user_id', user.id)
+       .in('assessment_type', ['new_beliefs', 'empowering_habits', 'time_investment', 'energy_gains', 'growth_areas'])
+       .not('value', 'is', null);
 
           if (newMeAssessments.error) {
             console.error('Error fetching new me assessments:', newMeAssessments.error);
@@ -63,12 +63,12 @@ export function CoachTweet({ day }: CoachTweetProps) {
           }
 
         const { data: streakData, error: streakError } = await supabase
-        .from('habit_streaks')
-        .select('streak')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+       .from('habit_streaks')
+       .select('streak')
+       .eq('user_id', user.id)
+       .order('created_at', { ascending: false })
+       .limit(1)
+       .single();
 
         if (streakError) {
           console.error('Error fetching user streak data:', streakError);
@@ -159,10 +159,6 @@ const generateTweet = async () => {
       </p>
       <div className="flex items-center text-gray-500 text-sm">
         <span>Day {day}/365</span>
-        <span className="mx-2">•</span>
-        <span>❤️ 1.2k</span>
-        <span className="mx-2">•</span>
-        <span>🔄 345</span>
       </div>
     </div>
   );

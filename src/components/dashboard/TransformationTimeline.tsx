@@ -30,7 +30,7 @@ export function TransformationTimeline() {
 
   return (
     <div className="mb-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Transformation Timeline</h2>
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Personal Development</h2>
       <div className="flex">
         <div className="flex-1 border-r-2 border-red-300 pr-4">
           <h3 className="font-medium text-red-600 mb-3">Old Me</h3>

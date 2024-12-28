@@ -9,76 +9,130 @@ type CoachTweetProps = {
 export function CoachTweet({ day }: CoachTweetProps) {
   const [tweet, setTweet] = useState<string>('');
   const { user } = useAuth();
+  const [date, setDate] = useState<Date>(new Date());
 
   useEffect(() => {
     const fetchUserData = async () => {
       if (!user) {
-        return { goals: '', vision: '' };
+        return { goals: [], assessments: [], first_name: '', streak: 0 };
       }
       try {
         const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('goals, vision, firstName')
-          .eq('id', user.id)
-          .single();
+         .from('profiles')
+         .select('first_name')
+         .eq('id', user.id)
+         .single();
 
         if (profileError) {
           console.error('Error fetching user profile data:', profileError);
-          return { goals: '', vision: '', firstName: '' };
+          return { goals: [], assessments: [], first_name: '', streak: 0 };
         }
 
+        const { data: goalsData, error: goalsError } = await supabase
+         .from('goals')
+         .select('name, importance')
+         .eq('user_id', user.id);
+
+        if (goalsError) {
+          console.error('Error fetching user goals data:', goalsError);
+          return { goals: [], assessments: [], first_name: profileData.first_name, streak: 0 };
+        }
+
+        const oldMeAssessments = await supabase
+         .from('assessments')
+         .select('assessment_type, value')
+         .eq('user_id', user.id)
+         .in('assessment_type', ['limiting_beliefs', 'bad_habits', 'time_wasters', 'energy_drainers', 'growth_blockers'])
+         .not('value', 'is', null);
+
+        if (oldMeAssessments.error) {
+          console.error('Error fetching old me assessments:', oldMeAssessments.error);
+          return { goals: goalsData, assessments: [], first_name: profileData.first_name, streak: 0 };
+        }
+
+        const newMeAssessments = await supabase
+         .from('assessments')
+         .select('assessment_type, value')
+         .eq('user_id', user.id)
+         .in('assessment_type', ['new_beliefs', 'empowering_habits', 'time_investment', 'energy_gains', 'growth_areas'])
+         .not('value', 'is', null);
+
+          if (newMeAssessments.error) {
+            console.error('Error fetching new me assessments:', newMeAssessments.error);
+            return { goals: goalsData, assessments: oldMeAssessments.data, first_name: profileData.first_name, streak: 0 };
+          }
+
         const { data: streakData, error: streakError } = await supabase
-          .from('habit_streaks')
-          .select('streak')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+         .from('habit_streaks')
+         .select('streak')
+         .eq('user_id', user.id)
+         .order('created_at', { ascending: false })
+         .limit(1)
+         .single();
 
         if (streakError) {
           console.error('Error fetching user streak data:', streakError);
-          return { goals: profileData.goals, vision: profileData.vision, firstName: profileData.firstName, streak: 0 };
+           return { goals: goalsData, assessments: [...oldMeAssessments.data,...newMeAssessments.data], first_name: profileData.first_name, streak: 0 };
         }
 
-        return { goals: profileData.goals, vision: profileData.vision, firstName: profileData.firstName, streak: streakData.streak };
+        return { goals: goalsData, assessments: [...oldMeAssessments.data,...newMeAssessments.data], first_name: profileData.first_name, streak: streakData.streak };
       } catch (error) {
         console.error('Error fetching user data:', error);
-        return { goals: '', vision: '', firstName: '', streak: 0 };
+        return { goals: [], assessments: [], first_name: '', streak: 0 };
       }
     };
 
-    const generateTweet = async () => {
-      const userData = await fetchUserData();
-      const geminiApiKey = 'AIzaSyAigFtUTFDG91r2Z8daT09qGCUMYtzl94w';
-      const today = new Date();
-      const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
-      const prompt = `Generate a short, supportive and relatable tweet for ${userData.firstName} on this ${dayOfWeek} based on their goals: ${userData.goals}, vision: ${userData.vision}, and current habit streak of ${userData.streak} days. The tweet should not include emojis or hashtags.`;
+const generateTweet = async () => {
+  const userData = await fetchUserData();
+  const geminiApiKey = 'AIzaSyAigFtUTFDG91r2Z8daT09qGCUMYtzl94w';
+  const today = new Date();
+  const dayOfWeek = today.toLocaleDateString('en-US', { weekday: 'long' });
+  
+  let goalsText = '';
+  if (userData.goals) {
+    goalsText = userData.goals.map((goal: { name: string, importance: string }) => {
+      return `You want to achieve ${goal.name} because ${goal.importance}.`;
+    }).join(' ');
+  }
 
-      try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              contents: [{
-                parts: [{ text: prompt }],
-              }],
-            }),
-          }
-        );
-        const data = await response.json();
-        const generatedTweet = data.candidates[0].content.parts[0].text;
-        setTweet(generatedTweet);
-      } catch (error) {
-        console.error('Error generating tweet:', error);
-        setTweet('Failed to generate tweet.');
+  let assessmentText = '';
+  if (userData.assessments) {
+    assessmentText = userData.assessments.map((assessment: { assessment_type: string; value: string }) => {
+      return `You have ${assessment.assessment_type} of ${assessment.value}.`;
+    }).join(' ');
+  }
+
+  const prompt = `Generate a short, supportive and relatable tweet for ${userData.first_name} on this ${dayOfWeek} based on their goals: ${goalsText} and assessments: ${assessmentText}. The tweet should not include emojis or hashtags.`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }],
+          }],
+        }),
       }
-    };
-
-    generateTweet();
+    );
+    const data = await response.json();
+    const generatedTweet = data.candidates[0].content.parts[0].text;
+    setTweet(generatedTweet);
+  } catch (error) {
+    console.error('Error generating tweet:', error);
+    setTweet('Failed to generate tweet.');
+  }
+};
+    const todayDate = new Date();
+    const storedDate = localStorage.getItem('date');
+    if (!storedDate || storedDate!== todayDate.toISOString().split('T')[0]) {
+      generateTweet();
+      localStorage.setItem('date', todayDate.toISOString().split('T')[0]);
+    }
   }, [user]);
 
   return (
